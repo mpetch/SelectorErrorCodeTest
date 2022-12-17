@@ -335,9 +335,6 @@ PDPT_OFS           EQU 0x1000  ; Offset of Page Directory Pointer Table
 PD_OFS             EQU 0x2000  ; Offset of Page Directory Table
 
 switch_longmode_64:
-    push dword 1<<EFLAGS_IF_BIT; Reset all the EFLAG bits to 0 except IF=1
-    popfd
-
     ; Zero out the 12KiB buffer used for PML4, PDPT, PD.
     ; We are using rep stosd (DWORD) thus the count should be bytes / 4.
     push di                    ; Temporarily store DI
@@ -373,14 +370,14 @@ switch_longmode_64:
     out 0x21, al               ; Disable all interrupts on Master PIC
 
     ; Flush any pending IRQs
+    sti
     mov ecx, 8
     ; Do a loop to allow pending interrupts to be processed.
     ; Execute enough instructions to process all 16 interrupts.
 .irqflush:
     dec ecx
     jnz .irqflush
-
-    lidt [idtr]                ; Load the IDTR
+    cli
 
     ; Enter long mode directly from real mode without entering compatibility mode
     movzx esp, sp              ; Zero extend SP to ESP
@@ -396,7 +393,11 @@ switch_longmode_64:
     mov cr0, eax               ; Update CR0
     jmp .flushipfq             ; This JMP is to flush instruction prefetch queue
 .flushipfq:
+
     lgdt [gdtr]                ; Load gdt from gdtr
+    lidt [idtr]                ; Load the IDTR
+    push dword 1<<EFLAGS_IF_BIT; Reset all the EFLAG bits to 0 except IF=1
+    popfd
     jmp CODE64_PL0_SEL:longmode64_entry
                                ; Start executing code in 64-bit mode
 
