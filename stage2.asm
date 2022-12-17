@@ -315,8 +315,7 @@ check_386:
 ;             by setting up proper PML4, PDPT, and PD
 ;           - Disable interrupts on the Master and Slave PICs
 ;           - Flush any pending external interrupts
-;           - Use LIDT to load an IDT record with size of 0 to force
-;             all software and hardware interrupts to triple fault
+;           - Use LIDT to load an IDT record
 ;           - Jump to 64-bit mode at label `longmode64_entry`
 ;
 ; Inputs:   DS:EDI 4KiB aligned address where there is at least
@@ -469,13 +468,6 @@ idtr:
     dw idt.end - idt - 1        ; limit (Size of IDT - 1)
     dq idt                      ; base of IDT
 
-; Entry point for 64-bit mode
-; Upon entry these have all been set:
-;     - CPU is running at Current Privilege Level (CPL) = 0 aka kernel mode
-;     - Interrupts are enabled (IF=1)
-;     - External interrupts are disabled on the Master and Slave PICs
-;     - Direction Flag clear (DF=0)
-
 BITS 64
 
 ; AMD64 System V calling convention
@@ -501,6 +493,12 @@ itohex_conditional:
     lea rax, [rdi + 1]
     ret
 
+; Entry point for 64-bit mode
+; Upon entry these have all been set:
+;     - CPU is running at Current Privilege Level (CPL) = 0 aka kernel mode
+;     - Interrupts are enabled (IF=1)
+;     - External interrupts are disabled on the Master and Slave PICs
+;     - Direction Flag clear (DF=0)
 longmode64_entry:
     mov eax, DATA64_PL0_SEL    ; Set DS/ES/FS/GS/SS to a
                                ;     privilege level 0 data selector
@@ -510,8 +508,7 @@ longmode64_entry:
     mov gs, eax
     mov ss, eax
 
-    lidt [idtr]
-    int 0x97                    ; Cause exception for interrupt that isn't marked present
+    int 0x97                   ; Cause exception for interrupt that isn't marked present
     hlt
 
 exc_97:
