@@ -380,8 +380,7 @@ switch_longmode_64:
     dec ecx
     jnz .irqflush
 
-    lidt [idtr]                ; Load a zero length IDT so that any hardware
-                               ;     interrupt or CPU exception causes a triple fault
+    lidt [idtr]                ; Load the IDTR
 
     ; Enter long mode directly from real mode without entering compatibility mode
     movzx esp, sp              ; Zero extend SP to ESP
@@ -475,7 +474,7 @@ BITS 64
 
 itohex:
 itohex_conditional:
-    mov rbx, rdi
+    mov rdx, rdi
     lea rdi, [rdi + 15]        ; First output digit will be written at buf+15, then we count backwards
 .digit_loop:                   ; do {
     mov rax, rsi
@@ -487,7 +486,7 @@ itohex_conditional:
     mov [rdi], al              ;     *ptr-- = c;
     dec rdi
     shr rsi, 4
-    cmp rdi, rbx
+    cmp rdi, rdx
     jae .digit_loop            ; }while(ptr >= buf)
 
     lea rax, [rdi + 1]
