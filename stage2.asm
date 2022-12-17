@@ -443,7 +443,7 @@ align 4
 gdtr:
     dw end_of_gdt - gdt_start - 1
                                ; limit (Size of GDT - 1)
-    dd gdt_start               ; base of GDT
+    dq gdt_start               ; base of GDT
 
 NULL_SEL_RPL0  EQU 0
 NULL_SEL_RPL1  EQU 1
