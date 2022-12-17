@@ -9,7 +9,6 @@ EFLAGS_IF_BIT         EQU 9    ; Interrupt Flag (IF) bit = 9
 org STAGE2_OFS                 ; Set origin point (VMA) of stage2
 %define ABSADDR(offset) (offset - $$ + STAGE2_OFS)
 
-
 bits 16
 
 ; Stage2 Entry point
@@ -463,7 +462,6 @@ idt:
     MAKE_IDT_DESC(ABSADDR(exc_b), CODE64_PL0_SEL, 10001110b)
     TIMES 139 dq 0, 0
     MAKE_IDT_DESC(ABSADDR(exc_97), CODE64_PL0_SEL, 00001110b)
-
 .end:
 
 align 4
@@ -485,27 +483,22 @@ BITS 64
 
 itohex:
 itohex_conditional:
-    mov    rbx, rdi
-    lea    rdi, [rdi + 15]   ; First output digit will be written at buf+7, then we count backwards
-.digit_loop:                ; do {
-    mov    rax, rsi
-    and    rax, 0x0f            ; isolate the low 4 bits in EAX
-    lea    rcx, [rax + 'a'-10]  ; possible a..f value
-    add    rax, '0'             ; possible 0..9 value
-    cmp    rcx, 'a'
-    cmovae rax, rcx             ; use the a..f value if it's in range.
-                                ; for better ILP, another scratch register would let us compare before 2x LEA,
-                                ;  instead of having the compare depend on an LEA or ADD result.
+    mov rbx, rdi
+    lea rdi, [rdi + 15]        ; First output digit will be written at buf+15, then we count backwards
+.digit_loop:                   ; do {
+    mov rax, rsi
+    and rax, 0x0f              ;     isolate the low 4 bits in EAX
+    lea rcx, [rax + 'a'-10]    ;     possible a..f value
+    add rax, '0'               ;     possible 0..9 value
+    cmp rcx, 'a'
+    cmovae rax, rcx            ;     use the a..f value if it's in range.
+    mov [rdi], al              ;     *ptr-- = c;
+    dec rdi
+    shr rsi, 4
+    cmp rdi, rbx
+    jae .digit_loop            ; }while(ptr >= buf)
 
-    mov    [rdi], al        ; *ptr-- = c;
-    dec    rdi
-
-    shr    rsi, 4
-
-    cmp    rdi, rbx         ; alternative:  jnz on flags from EDX to not write leading zeros.
-    jae    .digit_loop      ; }while(ptr >= buf)
-
-    lea    rax, [rdi + 1]
+    lea rax, [rdi + 1]
     ret
 
 longmode64_entry:
@@ -518,8 +511,7 @@ longmode64_entry:
     mov ss, eax
 
     lidt [idtr]
-    int 0x97
-
+    int 0x97                    ; Cause exception for interrupt that isn't marked present
     hlt
 
 exc_97:
@@ -536,13 +528,13 @@ exc_b:
     mov rsi, rax
     mov rdi, VIDEO_TEXT_ADDR
     mov ah, ATTR_WHITE_ON_MAGENTA
+    jmp .enter_loop
 .print_loop:
+    stosw
+.enter_loop:
     lodsb
     test al, al
-    jz .end_print_loop
-    stosw
-    jmp .print_loop
-.end_print_loop:
+    jnz .print_loop
 
     hlt                        ; Because this exception is fatal: halt and don't return
 .buffer: TIMES 17 db 0
